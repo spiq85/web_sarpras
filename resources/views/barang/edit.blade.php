@@ -1,0 +1,78 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="p-6 bg-gray-900 min-h-screen text-white">
+    <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-semibold mb-6">Edit Barang</h2>
+
+        <form action="{{ route('barang.update', $barang->id_barang) }}" method="POST" enctype="multipart/form-data" class="bg-gray-800 p-6 rounded-xl shadow">
+            @csrf
+            @method('PUT')
+
+            <div class="mb-4">
+                <label class="block mb-1">Nama Barang</label>
+                <input type="text" name="nama_barang" value="{{ old('nama_barang', $barang->nama_barang) }}" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Kode Barang</label>
+                <input type="text" name="kode_barang" value="{{ old('kode_barang', $barang->kode_barang) }}" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Kategori</label>
+                <select name="id_category" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+                    @foreach($kategori as $kat)
+                        <option value="{{ $kat->id_category }}" {{ old('id_category', $barang->id_category) == $kat->id_category ? 'selected' : '' }}>
+                            {{ $kat->nama_kategori }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Stock</label>
+                <input type="number" name="stock" value="{{ old('stock', $barang->stock) }}" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Brand</label>
+                <input type="text" name="brand" value="{{ old('brand', $barang->brand) }}" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Status</label>
+                <select name="status" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+                    <option value="">-- Pilih Status --</option>
+                    <option value="tersedia" {{ old('status', $barang->status) == 'tersedia' ? 'selected' : '' }}>Tersedia</option>
+                    <option value="dipinjam" {{ old('status', $barang->status) == 'dipinjam' ? 'selected' : '' }}>Dipinjam</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Kondisi</label>
+                <select name="kondisi_barang" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+                    <option value="">-- Pilih Kondisi --</option>
+                    <option value="baik" {{ old('kondisi_barang', $barang->kondisi_barang) == 'baik' ? 'selected' : '' }}>Baik</option>
+                    <option value="rusak" {{ old('kondisi_barang', $barang->kondisi_barang) == 'rusak' ? 'selected' : '' }}>Rusak</option>
+                    <option value="dll" {{ old('kondisi_barang', $barang->kondisi_barang) == 'dll' ? 'selected' : '' }}>Dll</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="block mb-1">Gambar Barang (opsional)</label>
+                <input type="file" name="gambar_barang" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+                @if ($barang->gambar_barang)
+                    <div class="mt-4">
+                        <label class="block mb-1">Gambar Saat Ini</label>
+                        <img src="{{ asset('storage/gambar_barang/' . $barang->gambar_barang) }}" alt="Gambar Barang" class="max-h-64 rounded border border-gray-500">
+                    </div>
+                @endif
+            </div>
+
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Update</button>
+            <a href="{{ route('barang.index') }}" class="ml-4 text-gray-300 hover:text-white underline">Kembali</a>
+        </form>
+    </div>
+</div>
+@endsection
