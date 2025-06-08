@@ -10,15 +10,30 @@ class DetailPengembalian extends Model
     use HasFactory;
 
     protected $table = 'detail_pengembalian';
+
     protected $primaryKey = 'id_detail_pengembalian';
 
     protected $fillable = [
         'id_detail_peminjaman',
+        'users_id',           
+        'id_peminjaman',      
+        'id_barang',          
+        'jumlah',             
+        'kondisi',
         'status',
-        'tanggal_kembali',
-        'catatan',
+        'soft_delete',
+        'tanggal_pengembalian', 
+        'keterangan',        
+        'item_image',
     ];
 
+    public $timestamps = true;
+
+    protected $casts = [
+        'tanggal_pengembalian' => 'datetime',
+    ];
+
+    // Relasi (Pastikan ini sudah benar)
     public function detailPeminjaman()
     {
         return $this->belongsTo(DetailPeminjaman::class, 'id_detail_peminjaman', 'id_detail_peminjaman');
@@ -31,6 +46,11 @@ class DetailPengembalian extends Model
 
     public function barang()
     {
-        return $this->belongsTo(Barang::class, 'id_barang');
+        return $this->belongsTo(Barang::class, 'id_barang', 'id_barang');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'users_id', 'users_id');
     }
 }

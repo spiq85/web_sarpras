@@ -24,3 +24,4 @@ class KategoriBarangSeeder extends Seeder
         ]);
     }
 }
+    

@@ -23,6 +23,11 @@
             </div>
 
             <div class="mb-3">
+                <label class="block">Name</label>
+                <input type="text" name="name" class="form-control w-full p-3 rounded-md bg-gray-700 text-white border border-gray-600 focus:ring-teal-500 focus:ring-2 focus:outline-none" required>
+            </div>
+
+            <div class="mb-3">
                 <label class="block">Email</label>
                 <input type="email" name="email" class="form-control w-full p-3 rounded-md bg-gray-700 text-white border border-gray-600 focus:ring-teal-500 focus:ring-2 focus:outline-none" required>
             </div>

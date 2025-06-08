@@ -37,7 +37,7 @@ class BarangController extends Controller
             'brand' => 'nullable|string',
             'status' => 'nullable|in:tersedia,dipinjam',
             'kondisi_barang' => 'nullable|in:baik,rusak,dll',
-            'gambar_barang' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'gambar_barang' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:204',
         ]);
 
         $data = $request->only([

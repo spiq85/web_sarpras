@@ -13,7 +13,7 @@ class PeminjamanRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return [ 
             'users_id'         => 'required|exists:users,id',
             'id_barang'        => 'required|exists:barang,id',
             'jumlah'           => 'required|integer|min:1',

@@ -7,6 +7,7 @@ use App\Http\Controllers\KategoriBarangController;
 use App\Http\Controllers\PeminjamanController;
 use App\Http\Controllers\DetailPeminjamanController;
 use App\Http\Controllers\DetailPengembalianController;
+use App\Http\Controllers\DetailPengembalianApiController;
 use App\Http\Controllers\UserController;
 
 // ------------------- AUTH -------------------
@@ -19,7 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware(['role:user'])->group(function () {
         Route::get('/user', [UserController::class, 'index']);
 
-        // User hanya bisa melihat barang
+        // ---------------- KATEGORI BARANG ----------------
         Route::get('/barang', [BarangController::class, 'apiIndex']);
         Route::get('/barang/{id}', [BarangController::class, 'show']);
 
@@ -29,6 +30,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/peminjaman', [PeminjamanController::class, 'store']);
         Route::get('/peminjaman/{id}', [PeminjamanController::class, 'show']);
         Route::get('/peminjaman-user', [PeminjamanController::class, 'userPeminjaman']);
+
+        // ---------------- DETAIL PEMINJAMAN ----------------
+    Route::get('/detail-pengembalian', [DetailPengembalianApiController::class, 'index'])->name('detail-pengembalian.index');
+    Route::post('/detail-pengembalian', [DetailPengembalianApiController::class, 'store'])->name('detail-pengembalian.store');
+    Route::get('/detail-pengembalian/{id}', [DetailPengembalianApiController::class, 'show'])->name('detail-pengembalian.show');
+    Route::put('/detail-pengembalian/{id}', [DetailPengembalianApiController::class, 'update'])->name('detail-pengembalian.update');
+    Route::get('/detail-pengembalian-user', [DetailPengembalianApiController::class, 'userPengembalian'])->name('api.detail-pengembalian.user');
+
+
     });
 });
 // ------------------- ADMIN ROLE -------------------
@@ -64,9 +74,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete('/detail-peminjaman/{id}', [DetailPeminjamanController::class, 'destroy'])->name('detail-peminjaman.destroy');
 
     // ---------------- DETAIL PENGEMBALIAN ----------------
-    Route::get('/detail-pengembalian', [DetailPengembalianController::class, 'index'])->name('detail-pengembalian.index');
-    Route::get('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'show'])->name('detail-pengembalian.show');
-    Route::put('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'update'])->name('detail-pengembalian.update');
     Route::delete('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'destroy'])->name('detail-pengembalian.destroy');
     Route::put('/detail-pengembalian/{id}/approve', [DetailPengembalianController::class, 'approve'])->name('detail-pengembalian.approve');
     Route::put('/detail-pengembalian/{id}/reject', [DetailPengembalianController::class, 'reject'])->name('detail-pengembalian.reject');
