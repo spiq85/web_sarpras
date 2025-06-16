@@ -24,11 +24,16 @@ Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
 Route::middleware('auth', 'role:admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+        Route::patch('/admin/notifications/{id}/mark-as-read', [DashboardController::class, 'markNotificationAsRead'])->name('notifications.markAsRead');
+        Route::post('/admin/notifications/mark-all-as-read', [DashboardController::class, 'markAllAsRead'])->name('notifications.markAllAsRead'); // Menggunakan GET untuk sederhana, tapi PATCH/POST lebih baik
+        Route::get('/admin/notifications/data', [DashboardController::class, 'apiNotifications'])->name('notifications.apiData');
+
+
         Route::get('/barang', [BarangController::class, 'index'])->name('barang.index');
         Route::get('/barang/create', [BarangController::class, 'create'])->name('barang.create');
         Route::get('/barang/{id}', [BarangController::class, 'show'])->name('barang.show');
         Route::get('/barang/{id}/edit', [BarangController::class, 'edit'])->name('barang.edit');
-        Route::post('/barang/store', [BarangController::class, 'store'])->name('barang');
+        Route::post('/barang/store', [BarangController::class, 'store'])->name('barang.store');
         Route::put('/barang/{id}', [BarangController::class, 'update'])->name('barang.update');
         Route::delete('/barang/{id}', [BarangController::class, 'destroy'])->name('barang.destroy');
 
@@ -56,7 +61,7 @@ Route::middleware('auth', 'role:admin')->group(function () {
 
         Route::get('/detail-pengembalian', [DetailPengembalianController::class, 'index'])->name('detail-pengembalian.index');
         Route::get('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'show'])->name('detail-pengembalian.show');
-        Route::post('/detail-pengembalian/store', [DetailPengembalianController::class, 'store'])->name('detail-pengembalian');
+        Route::post('/detail-pengembalian/store', [DetailPengembalianController::class, 'store'])->name('detail-pengembalian.store');
         Route::put('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'update'])->name('detail-pengembalian.update');
         Route::delete('/detail-pengembalian/{id}', [DetailPengembalianController::class, 'destroy'])->name('detail-pengembalian.destroy');
         
@@ -79,7 +84,7 @@ Route::middleware('auth', 'role:admin')->group(function () {
 });
 
 // Logout (web)
-Route::get('/logout', function () {
+Route::post('/logout', function () {
     Auth::logout();
     request()->session()->invalidate();
     request()->session()->regenerateToken();

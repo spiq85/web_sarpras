@@ -8,7 +8,9 @@ use App\Http\Controllers\PeminjamanController;
 use App\Http\Controllers\DetailPeminjamanController;
 use App\Http\Controllers\DetailPengembalianController;
 use App\Http\Controllers\DetailPengembalianApiController;
+use App\Http\Controllers\PeminjamanApiController;
 use App\Http\Controllers\UserController;
+
 
 // ------------------- AUTH -------------------
 Route::post('/login', [AuthController::class, 'apiLogin']);
@@ -29,7 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/detail-peminjaman/{id}', [DetailPeminjamanController::class, 'show'])->name('detail-peminjaman.show');
         Route::post('/peminjaman', [PeminjamanController::class, 'store']);
         Route::get('/peminjaman/{id}', [PeminjamanController::class, 'show']);
-        Route::get('/peminjaman-user', [PeminjamanController::class, 'userPeminjaman']);
+        Route::get('/peminjaman-user', [PeminjamanApiController::class, 'userLoans']);
 
         // ---------------- DETAIL PEMINJAMAN ----------------
     Route::get('/detail-pengembalian', [DetailPengembalianApiController::class, 'index'])->name('detail-pengembalian.index');

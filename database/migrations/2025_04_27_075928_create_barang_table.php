@@ -14,6 +14,7 @@
                 $table->string('kode_barang')->unique();
                 $table->string('nama_barang');
                 $table->integer('stock');
+                $table->integer('stock_dipinjam')->default(0);
                 $table->string('brand')->nullable();
                 $table->enum('status', ['tersedia','dipinjam'])->nullable();
                 $table->enum('kondisi_barang', ['baik', 'rusak', 'dll'])->nullable();

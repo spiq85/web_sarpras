@@ -22,6 +22,13 @@
                     value="{{ $user->username }}" required>
             </div>
 
+            {{-- Name --}}
+            <div class="mb-6">
+                <label for="name" class="block text-sm font-semibold text-gray-300">Nama Lengkap</label>
+                <input type="text" name="name" id="name" class="w-full bg-gray-700 text-white p-3 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-teal-400"
+                    value="{{ $user->name }}" required>
+            </div>
+
             {{-- Email --}}
             <div class="mb-6">
                 <label for="email" class="block text-sm font-semibold text-gray-300">Email</label>

@@ -3,19 +3,16 @@
 <div class="min-h-screen bg-gray-900 text-white p-6">
     {{-- Navbar --}}
     <nav class="flex flex-wrap justify-between items-center py-4 px-5 md:px-8 bg-gradient-to-b from-gray-800 to-gray-900 shadow-xl backdrop-blur-md border-b border-gray-700/50 rounded-xl mb-10">
-        <!-- Logo -->
         <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-teal-200 tracking-wider flex items-center space-x-3">
             <i class="fas fa-users-cog text-3xl text-teal-400"></i>
             <span>SISFO SARPRAS</span>
         </h1>
-        <!-- Hamburger (mobile only) -->
         <button id="menu-btn" class="md:hidden text-teal-400 focus:outline-none transition duration-300 hover:text-teal-200">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
-        <!-- Navigation Links -->
         <ul id="menu" class="hidden md:flex flex-col md:flex-row w-full md:w-auto mt-4 md:mt-0 gap-1 md:gap-5 text-base font-medium items-center">
             <li>
                 <a href="/dashboard" class="flex items-center gap-2 text-gray-300 font-semibold py-2 px-3 rounded-lg hover:bg-gray-800/70 transition duration-300">
@@ -77,6 +74,34 @@
             </div>
         </div>
     </div>
+
+    {{-- Filter and Search Section (BARU DITAMBAHKAN) --}}
+    <div class="mb-8 bg-gradient-to-r from-gray-800/80 to-gray-900/80 p-6 rounded-xl shadow-lg border border-gray-700/50">
+        <form action="{{ route('peminjaman.index') }}" method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+            <div class="flex-grow">
+                <label for="search" class="block text-gray-300 text-sm font-medium mb-2">Cari Peminjam (Username/Nama)</label>
+                <input type="text" name="search" id="search" placeholder="Masukkan username atau nama peminjam..."
+                       class="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-300"
+                       value="{{ $currentSearch }}">
+            </div>
+            
+            <div>
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-search"></i>
+                    <span>Cari</span>
+                </button>
+            </div>
+            <div>
+                <a href="{{ route('peminjaman.index') }}" 
+                   class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-times"></i>
+                    <span>Reset</span>
+                </a>
+            </div>
+        </form>
+    </div>
+
     {{-- Tabel Peminjaman --}}
     <section class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50 mb-10" x-data="{ showModal: false, detail: {} }">
         <h3 class="text-xl font-semibold text-teal-400 mb-6 border-b border-gray-700 pb-3 flex items-center gap-3">
@@ -246,7 +271,7 @@
 @endsection
 @push('scripts')
 <script src="//unpkg.com/alpinejs" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2 @11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function confirmApprove(id) {
         Swal.fire({

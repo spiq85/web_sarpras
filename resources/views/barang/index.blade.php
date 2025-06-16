@@ -4,13 +4,11 @@
 <div class="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 md:p-8">
     {{-- Navbar --}}
     <nav class="flex flex-wrap justify-between items-center py-4 px-5 md:px-8 bg-gradient-to-b from-gray-800 to-gray-900 shadow-xl backdrop-blur-md border-b border-gray-700/50 rounded-xl mb-10">
-        <!-- Logo -->
         <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-teal-200 tracking-wider flex items-center space-x-3">
             <i class="fas fa-users-cog text-3xl text-teal-400"></i>
             <span>SISFO SARPRAS</span>
         </h1>
 
-        <!-- Hamburger (mobile only) -->
         <button id="menu-btn" class="md:hidden text-teal-400 focus:outline-none transition duration-300 hover:text-teal-200">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -18,7 +16,6 @@
             </svg>
         </button>
 
-        <!-- Navigation Links -->
         <ul id="menu" class="hidden md:flex flex-col md:flex-row w-full md:w-auto mt-4 md:mt-0 gap-1 md:gap-5 text-base font-medium items-center">
             <li>
                 <a href="/dashboard" class="flex items-center gap-2 text-gray-300 hover:text-teal-400 py-2 px-3 rounded-lg hover:bg-gray-800/50 transition duration-300">
@@ -89,6 +86,42 @@
         </div>
     </div>
 
+    {{-- Filter and Search Section (BARU DITAMBAHKAN) --}}
+    <div class="mb-8 bg-gradient-to-r from-gray-800/80 to-gray-900/80 p-6 rounded-xl shadow-lg border border-gray-700/50">
+        <form action="{{ route('barang.index') }}" method="GET" class="flex flex-col md:flex-row gap-4">
+            <div class="flex-grow">
+                <label for="search" class="block text-gray-300 text-sm font-medium mb-2">Cari Nama Barang</label>
+                <input type="text" name="search" id="search" placeholder="Masukkan nama barang..."
+                        class="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-300"
+                        value="{{ $currentSearch }}">
+            </div>
+            <div>
+                <label for="id_category" class="block text-gray-300 text-sm font-medium mb-2">Filter Kategori</label>
+                <select name="id_category" id="id_category"
+                         class="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-300">
+                    <option value="">Semua Kategori</option>
+                    @foreach ($kategori as $cat)
+                        <option value="{{ $cat->id_category }}" {{ $currentCategory == $cat->id_category ? 'selected' : '' }}>
+                            {{ $cat->nama_kategori }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-search"></i>
+                    <span>Cari</span>
+                </button>
+                <a href="{{ route('barang.index') }}"
+                   class="ml-3 bg-gray-600 hover:bg-gray-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
+                    <i class="fas fa-times"></i>
+                    <span>Reset</span>
+                </a>
+            </div>
+        </form>
+    </div>
+
     {{-- Grid Card Daftar Barang --}}
     <section class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         @forelse ($barang as $item)
@@ -96,7 +129,7 @@
             <div class="relative w-full h-52 bg-gray-900/80 flex items-center justify-center overflow-hidden">
                 @if($item->gambar_barang)
                     <img src="{{ asset('storage/gambar_barang/' . $item->gambar_barang) }}" alt="gambar barang"
-                         class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110" />
+                                class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110" />
                 @else
                     <div class="w-full h-full bg-gray-800/80 flex items-center justify-center text-gray-500 text-xl">
                         <i class="fas fa-image text-4xl"></i>
@@ -106,7 +139,7 @@
                     {{$item->kode_barang}}
                 </div>
             </div>
-            
+
             <div class="p-5">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="bg-gradient-to-r from-blue-500 to-teal-500 w-1 h-6 rounded-full"></span>
@@ -114,32 +147,39 @@
                         {{ $item->nama_barang }}
                     </h3>
                 </div>
-                
+
                 <div class="space-y-2 text-sm">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-tag text-blue-400 w-5"></i>
                         <p class="text-gray-300">{{ $item->kategori->nama_kategori ?? 'Tidak ada kategori' }}</p>
                     </div>
-                    
+
                     <div class="flex items-center gap-2">
                         <i class="fas fa-box-open text-teal-400 w-5"></i>
-                        <p class="text-gray-300">Stock: <span class="font-semibold text-white">{{ $item->stock }}</span></p>
+                        <p class="text-gray-300">Stok Tersedia: <span class="font-semibold text-white">{{ $item->stock }}</span></p>
                     </div>
-                    
+
+                    {{-- BARIS BARU UNTUK MENAMPILKAN STOK DIPINJAM --}}
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-hand-holding text-purple-400 w-5"></i> {{-- Icon untuk menunjukkan dipinjam --}}
+                        <p class="text-gray-300">Stok Dipinjam: <span class="font-semibold text-white">{{ $item->stock_dipinjam }}</span></p>
+                    </div>
+                    {{-- AKHIR BARIS BARU --}}
+
                     <div class="flex items-center gap-2">
                         <i class="fas fa-info-circle text-purple-400 w-5"></i>
                         <p class="text-gray-300">Kondisi: <span class="capitalize text-white">{{ $item->kondisi_barang }}</span></p>
                     </div>
-                    
+
                     <div class="flex items-center gap-2">
                         <i class="fas fa-building text-amber-400 w-5"></i>
                         <p class="text-gray-300">Brand: <span class="text-white">{{ $item->brand }}</span></p>
                     </div>
-                    
+
                     <div class="flex items-center gap-2">
                         <i class="fas fa-check-circle text-green-400 w-5"></i>
-                        <p class="text-gray-300">Status: 
-                            <span class="capitalize 
+                        <p class="text-gray-300">Status:
+                            <span class="capitalize
                                 {{$item->status == 'tersedia' ? 'text-green-400' : 'text-red-400'}}">
                                 {{ $item->status }}
                             </span>
@@ -181,12 +221,12 @@
         </div>
         @endforelse
     </section>
-    
+
     {{-- Pagination --}}
     <div class="mt-8 flex justify-center">
         {{-- Pagination links would go here if you're using Laravel's pagination --}}
     </div>
-    
+
     {{-- Footer --}}
     <footer class="mt-10 text-center text-gray-500 text-sm py-4 border-t border-gray-800">
         <p>© {{ date('Y') }} SISFO SARPRAS - Sistem Informasi Sarana dan Prasarana</p>
@@ -219,8 +259,9 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     form.submit();
-                    
-                    // Tambahkan notifikasi sukses
+
+                    // Tambahkan notifikasi sukses (Ini akan tampil setelah halaman reload dari submit form)
+                    // Catatan: Jika Anda ingin notifikasi tampil sebelum reload, Anda perlu menggunakan AJAX untuk penghapusan
                     Swal.fire({
                         position: 'top-end',
                         icon: 'success',
@@ -235,21 +276,21 @@
             });
         });
     });
-    
+
     // Efek ripple untuk button
     const buttons = document.querySelectorAll('button, a');
     buttons.forEach(button => {
         button.addEventListener('click', function(e) {
             const x = e.clientX - e.target.offsetLeft;
             const y = e.clientY - e.target.offsetTop;
-            
+
             const ripple = document.createElement('span');
             ripple.style.left = `${x}px`;
             ripple.style.top = `${y}px`;
             ripple.classList.add('ripple');
-            
+
             this.appendChild(ripple);
-            
+
             setTimeout(() => {
                 ripple.remove();
             }, 600);
@@ -274,7 +315,7 @@
     ::-webkit-scrollbar-thumb:hover {
         background: rgba(107, 114, 128, 0.8);
     }
-    
+
     /* Ripple effect */
     button, a {
         position: relative;
@@ -294,12 +335,7 @@
             opacity: 0;
         }
     }
-    
-    /* Hover effects */
-    .group:hover {
-        box-shadow: 0 10px 25px -5px rgba(20, 184, 166, 0.1);
-    }
-    
+
     /* Smooth transitions */
     * {
         transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, color 0.2s;

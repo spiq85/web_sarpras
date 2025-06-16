@@ -24,7 +24,7 @@ class LaporanController extends Controller
         $totalPeminjaman = DetailPeminjaman::count();
         $peminjamanAktif = DetailPeminjaman::where('status', 'pending')->count();
         $totalPengembalian = DetailPengembalian::where('soft_delete', 0)->count();
-        $terlambat = DetailPengembalian::where('soft_delete', 0)->where('status', 'approve')->count();
+        $terlambat = DetailPengembalian::where('soft_delete', 0)->where('status', 'not approve')->count();
         $kategoriList = KategoriBarang::all();
 
         $recentPeminjaman = DetailPeminjaman::with(['user', 'barang'])->latest()->take(5)->get()->map(function ($item) {

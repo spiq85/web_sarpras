@@ -13,6 +13,6 @@ class KategoriBarang extends Model
     protected $primaryKey = 'id_category';
 
     protected $fillable = [
-        'nama_kategori', 'deskripsi'
+        'nama_kategori', 'deskripsi', 'prefix_kode'
     ];
 }
