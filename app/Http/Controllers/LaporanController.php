@@ -14,6 +14,7 @@ use App\Exports\BarangExport;
 use App\Exports\PeminjamanExport;
 use App\Exports\PengembalianExport;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB; // Make sure to add this for DB raw expressions
 
 class LaporanController extends Controller
 {
@@ -57,17 +58,49 @@ class LaporanController extends Controller
             ];
         });
 
-        $chartData = collect([
-            ['name' => 'Jan', 'value' => 45],
-            ['name' => 'Feb', 'value' => 63],
-            ['name' => 'Mar', 'value' => 58],
-            ['name' => 'Apr', 'value' => 75],
-            ['name' => 'May', 'value' => 10],
-        ]);
+        // --- CHART DATA FOR REPORTS (copied from DashboardController) ---
+        $monthsToShow = 6;
+        $monthlyLabels = [];
+        $monthlyValues = [];
+
+        for ($i = $monthsToShow - 1; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->translatedFormat('M Y');
+            $monthlyLabels[] = $monthName;
+
+            $count = DetailPeminjaman::whereYear('tanggal_pinjam', $month->year)
+                                     ->whereMonth('tanggal_pinjam', $month->month)
+                                     ->count();
+            $monthlyValues[] = $count;
+        }
+
+        $lineChartData = [
+            'labels' => $monthlyLabels,
+            'values' => $monthlyValues,
+        ];
+
+        $mostBorrowedItems = DetailPeminjaman::select('id_barang', DB::raw('COUNT(*) as total_borrowed'))
+            ->groupBy('id_barang')
+            ->orderByDesc('total_borrowed')
+            ->with('barang')
+            ->take(5)
+            ->get();
+
+        $pieChartLabels = [];
+        $pieChartValues = [];
+        foreach ($mostBorrowedItems as $item) {
+            $pieChartLabels[] = optional($item->barang)->nama_barang ?? 'Unknown';
+            $pieChartValues[] = $item->total_borrowed;
+        }
+        $pieChartData = [
+            'labels' => $pieChartLabels,
+            'values' => $pieChartValues,
+        ];
+        // --- END CHART DATA ---
 
         // Create empty peminjaman collection as default
         $peminjaman = collect();
-        
+
         // Set default values for filter parameters
         $startDate = null;
         $endDate = null;
@@ -79,7 +112,8 @@ class LaporanController extends Controller
             'totalPengembalian', 'terlambat',
             'kategoriList', 'recentPeminjaman',
             'recentPengembalian', 'inventoryData',
-            'chartData', 'peminjaman', 'startDate', 'endDate', 'kategori'
+            'lineChartData', 'pieChartData', // Pass chart data
+            'peminjaman', 'startDate', 'endDate', 'kategori'
         ));
     }
 
@@ -134,13 +168,46 @@ class LaporanController extends Controller
                 ];
             });
 
-        $chartData = collect([
-            ['name' => 'Jan', 'value' => 45],
-            ['name' => 'Feb', 'value' => 63],
-            ['name' => 'Mar', 'value' => 58],
-            ['name' => 'Apr', 'value' => 75],
-            ['name' => 'May', 'value' => 10],
-        ]);
+        // --- CHART DATA FOR REPORTS (copied from DashboardController) ---
+        $monthsToShow = 6;
+        $monthlyLabels = [];
+        $monthlyValues = [];
+
+        for ($i = $monthsToShow - 1; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->translatedFormat('M Y');
+            $monthlyLabels[] = $monthName;
+
+            $count = DetailPeminjaman::whereYear('tanggal_pinjam', $month->year)
+                                     ->whereMonth('tanggal_pinjam', $month->month)
+                                     ->count();
+            $monthlyValues[] = $count;
+        }
+
+        $lineChartData = [
+            'labels' => $monthlyLabels,
+            'values' => $monthlyValues,
+        ];
+
+        $mostBorrowedItems = DetailPeminjaman::select('id_barang', DB::raw('COUNT(*) as total_borrowed'))
+            ->groupBy('id_barang')
+            ->orderByDesc('total_borrowed')
+            ->with('barang')
+            ->take(5)
+            ->get();
+
+        $pieChartLabels = [];
+        $pieChartValues = [];
+        foreach ($mostBorrowedItems as $item) {
+            $pieChartLabels[] = optional($item->barang)->nama_barang ?? 'Unknown';
+            $pieChartValues[] = $item->total_borrowed;
+        }
+        $pieChartData = [
+            'labels' => $pieChartLabels,
+            'values' => $pieChartValues,
+        ];
+        // --- END CHART DATA ---
+
 
         // Initialize empty collection
         $peminjaman = collect();
@@ -177,7 +244,7 @@ class LaporanController extends Controller
                     $item->data_type = 'barang';
                     return $item;
                 });
-                
+
             $peminjamanData = Peminjaman::with(['user', 'detail.barang'])
                 ->whereHas('detail', function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('tanggal_pinjam', [$startDate, $endDate]);
@@ -187,7 +254,7 @@ class LaporanController extends Controller
                     $item->data_type = 'peminjaman';
                     return $item;
                 });
-                
+
             $pengembalianData = DetailPengembalian::with(['barang', 'peminjaman.user'])
                 ->where('soft_delete', 0)
                 ->whereBetween('tanggal_pengembalian', [$startDate, $endDate])
@@ -196,14 +263,14 @@ class LaporanController extends Controller
                     $item->data_type = 'pengembalian';
                     return $item;
                 });
-                
+
             // Combine all data
             $peminjaman = collect([
                 'barang' => $barangData,
                 'peminjaman' => $peminjamanData,
                 'pengembalian' => $pengembalianData
             ]);
-            
+
             // Set "all" flag to indicate we're showing all categories
             $kategori = 'all';
         }
@@ -214,8 +281,115 @@ class LaporanController extends Controller
             'totalPengembalian', 'terlambat',
             'kategoriList', 'recentPeminjaman',
             'recentPengembalian', 'inventoryData',
-            'chartData', 'startDate', 'endDate', 'kategori'
+            'lineChartData', 'pieChartData', // Pass chart data
+            'startDate', 'endDate', 'kategori'
         ));
+    }
+
+    // ---------------- PEMINJAMAN ----------------
+    public function peminjaman(Request $request)
+    {
+        $query = DetailPeminjaman::with(['barang', 'user']);
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('tanggal_pinjam', [$request->start_date, $request->end_date]);
+        }
+        $data = $query->get();
+
+        // --- CHART DATA FOR PDF ---
+        $monthsToShow = 6;
+        $monthlyLabels = [];
+        $monthlyValues = [];
+
+        for ($i = $monthsToShow - 1; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->translatedFormat('M Y');
+            $monthlyLabels[] = $monthName;
+
+            $count = DetailPeminjaman::whereYear('tanggal_pinjam', $month->year)
+                                     ->whereMonth('tanggal_pinjam', $month->month)
+                                     ->count();
+            $monthlyValues[] = $count;
+        }
+
+        $lineChartData = [
+            'labels' => $monthlyLabels,
+            'values' => $monthlyValues,
+        ];
+
+        $mostBorrowedItems = DetailPeminjaman::select('id_barang', DB::raw('COUNT(*) as total_borrowed'))
+            ->groupBy('id_barang')
+            ->orderByDesc('total_borrowed')
+            ->with('barang')
+            ->take(5)
+            ->get();
+
+        $pieChartLabels = [];
+        $pieChartValues = [];
+        foreach ($mostBorrowedItems as $item) {
+            $pieChartLabels[] = optional($item->barang)->nama_barang ?? 'Unknown';
+            $pieChartValues[] = $item->total_borrowed;
+        }
+        $pieChartData = [
+            'labels' => $pieChartLabels,
+            'values' => $pieChartValues,
+        ];
+        // --- END CHART DATA ---
+
+        return view('laporan.pdf.peminjaman', compact('data', 'lineChartData', 'pieChartData'));
+    }
+
+    public function peminjamanPdf(Request $request)
+    {
+        $query = Peminjaman::with(['user', 'detail.barang']);
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereHas('detail', function ($q) use ($request) {
+                $q->whereBetween('tanggal_pinjam', [$request->start_date, $request->end_date]);
+            });
+        }
+        $data = $query->get();
+
+        // --- CHART DATA FOR PDF ---
+        $monthsToShow = 6;
+        $monthlyLabels = [];
+        $monthlyValues = [];
+
+        for ($i = $monthsToShow - 1; $i >= 0; $i--) {
+            $month = Carbon::now()->subMonths($i);
+            $monthName = $month->translatedFormat('M Y');
+            $monthlyLabels[] = $monthName;
+
+            $count = DetailPeminjaman::whereYear('tanggal_pinjam', $month->year)
+                                     ->whereMonth('tanggal_pinjam', $month->month)
+                                     ->count();
+            $monthlyValues[] = $count;
+        }
+
+        $lineChartData = [
+            'labels' => $monthlyLabels,
+            'values' => $monthlyValues,
+        ];
+
+        $mostBorrowedItems = DetailPeminjaman::select('id_barang', DB::raw('COUNT(*) as total_borrowed'))
+            ->groupBy('id_barang')
+            ->orderByDesc('total_borrowed')
+            ->with('barang')
+            ->take(5)
+            ->get();
+
+        $pieChartLabels = [];
+        $pieChartValues = [];
+        foreach ($mostBorrowedItems as $item) {
+            $pieChartLabels[] = optional($item->barang)->nama_barang ?? 'Unknown';
+            $pieChartValues[] = $item->total_borrowed;
+        }
+        $pieChartData = [
+            'labels' => $pieChartLabels,
+            'values' => $pieChartValues,
+        ];
+        // --- END CHART DATA ---
+
+        $pdf = PDF::loadView('laporan.pdf.peminjaman', compact('data', 'lineChartData', 'pieChartData'));
+        return $pdf->download('laporan_peminjaman.pdf');
     }
 
     // The rest of your methods remain unchanged...
@@ -246,30 +420,6 @@ class LaporanController extends Controller
         return Excel::download(new BarangExport($request->start_date, $request->end_date), 'laporan_barang.xlsx');
     }
 
-    // ---------------- PEMINJAMAN ----------------
-    public function peminjaman(Request $request)
-    {
-        $query = DetailPeminjaman::with(['barang', 'user']);
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('tanggal_pinjam', [$request->start_date, $request->end_date]);
-        }
-        $data = $query->get();
-        return view('laporan.pdf.peminjaman', compact('data'));
-    }
-
-    public function peminjamanPdf(Request $request)
-    {
-        $query = Peminjaman::with(['user', 'detail.barang']);
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereHas('detail', function ($q) use ($request) {
-                $q->whereBetween('tanggal_pinjam', [$request->start_date, $request->end_date]);
-            });
-        }
-        $data = $query->get();
-        $pdf = PDF::loadView('laporan.pdf.peminjaman', compact('data'));
-        return $pdf->download('laporan_peminjaman.pdf');
-    }
-    
     public function peminjamanExcel(Request $request)
     {
         return Excel::download(new PeminjamanExport($request->start_date, $request->end_date), 'laporan_peminjaman.xlsx');

@@ -95,14 +95,15 @@ class DetailPengembalianApiController extends Controller
             // Hanya jika status detail peminjaman sebelumnya adalah 'dipinjam'
             if ($detailPeminjaman->status === 'dipinjam') {
                 // Gunakan status yang lebih deskriptif untuk pengembalian yang sedang menunggu persetujuan
-                $detailPeminjaman->status = 'pending_pengembalian'; 
+                $detailPeminjaman->status = 'pending'; 
                 $detailPeminjaman->save();
-                Log::info('Detail Peminjaman status updated to pending_pengembalian:', [
+                Log::info('Detail Peminjaman status updated to pending:', [
                     'id' => $detailPeminjaman->id_detail_peminjaman,
-                    'status' => 'pending_pengembalian'
+                    'status' => 'pending'
                 ]);
             } else {
-                Log::warning('Detail Peminjaman status was not "dipinjam" when attempting return update to "pending_pengembalian". Current status:', [
+                Log::warning('Detail Peminjaman status was not "dipinjam" when attempting return update to "pending
+                ". Current status:', [
                     'id' => $detailPeminjaman->id_detail_peminjaman,
                     'current_status' => $detailPeminjaman->status
                 ]);
@@ -144,12 +145,10 @@ class DetailPengembalianApiController extends Controller
 
     public function approve($id)
     {
-        // Mulai transaksi database
         DB::beginTransaction();
         try {
-            $detailPengembalian = DetailPengembalian::with('detailPeminjaman.barang')->findOrFail($id); // Load relasi yang dibutuhkan
+            $detailPengembalian = DetailPengembalian::with('detailPeminjaman.barang', 'peminjaman')->findOrFail($id); // Load relasi peminjaman utama juga
 
-            // Pastikan DetailPeminjaman terkait ada
             if (!$detailPengembalian->detailPeminjaman) {
                 Log::warning("No associated DetailPeminjaman found for DetailPengembalian ID $id during approval. Cannot update related records.");
                 DB::rollBack();
@@ -158,30 +157,44 @@ class DetailPengembalianApiController extends Controller
                     'message' => 'Detail Peminjaman terkait tidak ditemukan untuk pengembalian ini.'
                 ], 404);
             }
+            if (!$detailPengembalian->peminjaman) { // Pastikan peminjaman utama juga ada
+                Log::warning("No associated Peminjaman found for DetailPengembalian ID $id during approval.");
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Peminjaman utama terkait tidak ditemukan untuk pengembalian ini.'
+                ], 404);
+            }
 
             // Update status di DetailPengembalian itu sendiri
-            $detailPengembalian->status = 'approve'; 
+            $detailPengembalian->status = 'approve';
             $detailPengembalian->save();
 
             // Update status di DetailPeminjaman terkait menjadi 'kembali'
             $detailPeminjaman = $detailPengembalian->detailPeminjaman;
-            $detailPeminjaman->status = 'kembali'; // Pastikan 'kembali' ada di ENUM migrasi DetailPeminjaman
+            $detailPeminjaman->status = 'kembali'; 
             $detailPeminjaman->save();
             Log::info("DetailPeminjaman status updated to 'kembali' after return approval.", ['id_detail_peminjaman' => $detailPeminjaman->id_detail_peminjaman]);
 
+            // **BARU: Update status di Peminjaman (induk) juga menjadi 'kembali'**
+            $peminjamanUtama = $detailPengembalian->peminjaman; // Gunakan relasi yang sudah dimuat
+            if ($peminjamanUtama->status !== 'kembali') { // Hanya update jika belum 'kembali'
+                 $peminjamanUtama->status = 'kembali';
+                 $peminjamanUtama->save();
+                 Log::info("Peminjaman (utama) status updated to 'kembali' after detail return approval.", ['id_peminjaman' => $peminjamanUtama->id_peminjaman]);
+            }
+
+
             // === Mengembalikan Stok Barang ===
-            // Pastikan relasi barang ada
             if ($detailPeminjaman->barang) {
                 $barang = $detailPeminjaman->barang;
                 $jumlahDikembalikan = $detailPeminjaman->jumlah;
 
-                // Kurangi stock_dipinjam dan tambahkan kembali ke stock
-                $barang->stock_dipinjam = max(0, $barang->stock_dipinjam - $jumlahDikembalikan); // Pastikan tidak negatif
+                $barang->stock_dipinjam = max(0, $barang->stock_dipinjam - $jumlahDikembalikan);
                 $barang->stock += $jumlahDikembalikan;
                 
-                // Opsional: Perbarui status barang jika semua sudah kembali dan tidak ada yang dipinjam
                 if ($barang->stock_dipinjam == 0) {
-                    $barang->status = 'tersedia'; // Asumsi 'tersedia' jika tidak ada yang dipinjam
+                    $barang->status = 'tersedia';
                 }
                 $barang->save();
                 Log::info("Stock and stock_dipinjam updated for barang ID {$barang->id_barang}.", [
@@ -193,15 +206,15 @@ class DetailPengembalianApiController extends Controller
             }
             // ===============================
 
-            DB::commit(); // Commit transaksi jika semua berhasil
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Pengembalian telah disetujui!',
-                'data' => $detailPengembalian->load(['barang', 'peminjaman', 'detailPeminjaman']) // Load ulang data untuk respons
+                'data' => $detailPengembalian->load(['barang', 'peminjaman', 'detailPeminjaman'])
             ], 200);
         } catch (\Exception $e) {
-            DB::rollBack(); // Rollback transaksi jika terjadi kesalahan
+            DB::rollBack();
             Log::error('Error approving Detail Pengembalian API:', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -228,13 +241,13 @@ class DetailPengembalianApiController extends Controller
             // Jika ditolak, kembalikan status DetailPeminjaman ke 'dipinjam'
             if ($detailPengembalian->detailPeminjaman) {
                 $detailPeminjaman = $detailPengembalian->detailPeminjaman;
-                // Hanya revert jika statusnya memang 'pending_pengembalian'
-                if ($detailPeminjaman->status === 'pending_pengembalian') {
+                // Hanya revert jika statusnya memang 'pending'
+                if ($detailPeminjaman->status === 'pending') {
                     $detailPeminjaman->status = 'dipinjam';
                     $detailPeminjaman->save();
                     Log::info("DetailPeminjaman status reverted to 'dipinjam' after return rejection.", ['id_detail_peminjaman' => $detailPeminjaman->id_detail_peminjaman]);
                 } else {
-                    Log::warning("DetailPeminjaman status was not 'pending_pengembalian' when attempting to revert after rejection. Current status:", [
+                    Log::warning("DetailPeminjaman status was not 'pending' when attempting to revert after rejection. Current status:", [
                         'id_detail_peminjaman' => $detailPeminjaman->id_detail_peminjaman,
                         'current_status' => $detailPeminjaman->status
                     ]);

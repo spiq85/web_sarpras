@@ -75,7 +75,7 @@
         </div>
     </div>
 
-    {{-- Filter and Search Section (BARU DITAMBAHKAN) --}}
+    {{-- Filter and Search Section --}}
     <div class="mb-8 bg-gradient-to-r from-gray-800/80 to-gray-900/80 p-6 rounded-xl shadow-lg border border-gray-700/50">
         <form action="{{ route('peminjaman.index') }}" method="GET" class="flex flex-col md:flex-row gap-4 items-end">
             <div class="flex-grow">
@@ -84,7 +84,7 @@
                        class="w-full p-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-300"
                        value="{{ $currentSearch }}">
             </div>
-            
+
             <div>
                 <button type="submit"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
@@ -93,7 +93,7 @@
                 </button>
             </div>
             <div>
-                <a href="{{ route('peminjaman.index') }}" 
+                <a href="{{ route('peminjaman.index') }}"
                    class="bg-gray-600 hover:bg-gray-700 text-white px-5 py-3 rounded-lg shadow-md transition transform hover:scale-105 flex items-center gap-2">
                     <i class="fas fa-times"></i>
                     <span>Reset</span>
@@ -135,9 +135,17 @@
                             <span class="px-2 py-1 text-xs rounded-full bg-green-900/50 text-green-300 border border-green-600/30">
                                 Disetujui
                             </span>
-                            @else
+                            @elseif ($pinjam->status === 'rejected') {{-- Tambahkan kondisi ini untuk status 'rejected' --}}
                             <span class="px-2 py-1 text-xs rounded-full bg-red-900/50 text-red-300 border border-red-600/30">
                                 Ditolak
+                            </span>
+                            @elseif ($pinjam->status === 'kembali') {{-- TAMBAHKAN KONDISI INI --}}
+                            <span class="px-2 py-1 text-xs rounded-full bg-blue-900/50 text-blue-300 border border-blue-600/30">
+                                Kembali
+                            </span>
+                            @else {{-- Fallback for any other unexpected status --}}
+                            <span class="px-2 py-1 text-xs rounded-full bg-gray-600/50 text-gray-300 border border-gray-500/30">
+                                {{ ucfirst($pinjam->status) }}
                             </span>
                             @endif
                         </td>
@@ -151,7 +159,7 @@
                                     jumlah: '{{ optional($pinjam->detail)->jumlah ?? '-' }}',
                                     tanggal_pinjam: '{{ optional($pinjam->detail)->tanggal_pinjam ?? '-' }}',
                                     tanggal_kembali: '{{ optional($pinjam->detail)->tanggal_kembali ?? '-' }}',
-                                }; showModal = true" 
+                                }; showModal = true"
                                     class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-xs transition-all transform hover:scale-105 shadow-md flex items-center gap-1">
                                     <i class="fas fa-eye"></i> Detail
                                 </button>
@@ -160,7 +168,7 @@
                                     @csrf
                                     @method('PUT')
                                 </form>
-                                <button onclick="confirmApprove('{{ $pinjam->id_peminjaman }}')" 
+                                <button onclick="confirmApprove('{{ $pinjam->id_peminjaman }}')"
                                     class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-1.5 rounded-lg text-xs transition-all transform hover:scale-105 shadow-md flex items-center gap-1">
                                     <i class="fas fa-check"></i> Approve
                                 </button>

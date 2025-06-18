@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Peminjaman;
-use App\Models\DetailPeminjaman; 
-use App\Models\Barang; 
+use App\Models\DetailPeminjaman;
+use App\Models\Barang;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log; 
-use App\Models\User; 
-use App\Notifications\NewPeminjamanNotification; 
+use Illuminate\Support\Facades\Log;
+use App\Models\User;
+use App\Notifications\NewPeminjamanNotification;
 
 class PeminjamanController extends Controller
 {
@@ -302,10 +302,10 @@ class PeminjamanController extends Controller
 
             $peminjaman = Peminjaman::with('detail.barang')->findOrFail($id);
 
-            // Hanya izinkan penolakan jika statusnya 'pending' atau 'dipinjam' (jika ingin bisa menolak yang sudah dipinjam)
-            // Saya asumsikan penolakan hanya dari status 'pending' atau 'dipinjam' (kalau ada masalah di tengah jalan)
-            if ($peminjaman->status === 'ditolak' || $peminjaman->status === 'dikembalikan') {
-                $message = 'Peminjaman ini sudah dalam status "ditolak" atau "dikembalikan" dan tidak bisa ditolak lagi.';
+            // Hanya izinkan penolakan jika statusnya 'pending' atau 'dipinjam'
+            // Jika sudah 'ditolak' atau 'dikembalikan', tidak bisa ditolak lagi.
+            if ($peminjaman->status === 'rejected' || $peminjaman->status === 'kembali') {
+                $message = 'Peminjaman ini sudah dalam status "' . $peminjaman->status . '" dan tidak bisa ditolak lagi.';
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => $message], 400);
                 } else {
@@ -313,45 +313,42 @@ class PeminjamanController extends Controller
                 }
             }
 
-            $originalPeminjamanStatus = $peminjaman->status; // Simpan status asli untuk kondisi stok
-            
-            $peminjaman->status = 'ditolak'; // Ubah status Peminjaman utama
-            $peminjaman->save(); // Simpan perubahan Peminjaman utama
+            // Simpan status asli detail untuk logika pengembalian stok
+            $originalDetailStatus = $peminjaman->detail ? $peminjaman->detail->status : null;
+
+            $peminjaman->status = 'rejected'; // Ubah status Peminjaman utama menjadi 'rejected'
+            $peminjaman->save();
 
             // Juga update status di DetailPeminjaman terkait. Ini akan memicu Observer.
             if ($peminjaman->detail) {
                 $detailPeminjaman = $peminjaman->detail;
-                $originalDetailStatus = $detailPeminjaman->status; // Simpan status asli detail
-
-                $detailPeminjaman->status = 'ditolak'; // Ubah status DetailPeminjaman
-                $detailPeminjaman->save(); // Observer DetailPeminjaman akan terpicu
+                $detailPeminjaman->status = 'rejected'; // Ubah status DetailPeminjaman menjadi 'rejected'
+                $detailPeminjaman->save(); // Observer DetailPeminjaman harus menangani pengembalian stok jika originalStatus adalah 'dipinjam'
 
                 Log::info("Detail Peminjaman rejected successfully:", [
                     'detail_id' => $detailPeminjaman->id_detail_peminjaman,
                     'new_detail_status' => $detailPeminjaman->status
                 ]);
 
-                // Logika opsional: Jika peminjaman ditolak dari status 'dipinjam', kembalikan stok
-                // Observer sudah menangani ini ketika status DetailPeminjaman berubah dari 'dipinjam' ke 'dikembalikan'
-                // atau 'ditolak'. Pastikan Observer Anda menangani transisi ini dengan benar.
-                // Untuk kasus 'ditolak' dari 'pending', tidak ada perubahan stok.
-                if ($originalDetailStatus === 'dipinjam' && $detailPeminjaman->status === 'ditolak') {
-                    $barang = $detailPeminjaman->barang;
-                    if ($barang) {
-                        $barang->stock += $detailPeminjaman->jumlah;
-                        $barang->stock_dipinjam -= $detailPeminjaman->jumlah;
-                        $barang->stock_dipinjam = max(0, $barang->stock_dipinjam);
-                        $barang->save();
-                        Log::info("Stok dikembalikan karena penolakan dari status 'dipinjam': Barang {$barang->id_barang}");
+                // Logika pengembalian stok:
+                // Jika peminjaman ditolak dari status 'dipinjam', kembalikan stok.
+                // Jika ditolak dari 'pending', tidak ada perubahan stok karena belum dipinjam.
+                if ($originalDetailStatus === 'dipinjam') {
+                     $barang = $detailPeminjaman->barang;
+                     if ($barang) {
+                         $barang->stock += $detailPeminjaman->jumlah;
+                         $barang->stock_dipinjam = max(0, $barang->stock_dipinjam - $detailPeminjaman->jumlah); // Pastikan tidak negatif
+                         $barang->save();
+                         Log::info("Stok dikembalikan karena penolakan dari status 'dipinjam': Barang {$barang->id_barang}");
 
-                        // Perbarui status barang keseluruhan jika sudah tidak ada yang dipinjam
-                        $barang->refresh(); // Ambil data barang terbaru
-                        if ($barang->stock_dipinjam === 0 && $barang->status !== 'tersedia') {
-                            $barang->status = 'tersedia';
-                            $barang->save();
-                            Log::info("Barang ID {$barang->id_barang} status changed to 'tersedia' (no more items borrowed after rejection).");
-                        }
-                    }
+                         // Perbarui status barang keseluruhan jika sudah tidak ada yang dipinjam
+                         $barang->refresh(); // Ambil data barang terbaru
+                         if ($barang->stock_dipinjam === 0 && $barang->status !== 'tersedia') {
+                             $barang->status = 'tersedia';
+                             $barang->save();
+                             Log::info("Barang ID {$barang->id_barang} status changed to 'tersedia' after rejection from 'dipinjam' status.");
+                         }
+                     }
                 }
             } else {
                 Log::warning("No detail found for peminjaman ID: $id during reject.");
@@ -367,7 +364,7 @@ class PeminjamanController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Peminjaman berhasil ditolak!',
-                    'data' => $peminjaan->load(['user', 'detail.barang']) // Kembalikan data lengkap
+                    'data' => $peminjaman->load(['user', 'detail.barang']) // Kembalikan data lengkap
                 ], 200);
             } else { // Jika dipanggil dari web admin
                 return redirect()->route('peminjaman.index')->with('success', 'Peminjaman berhasil ditolak!');
@@ -420,21 +417,30 @@ class PeminjamanController extends Controller
                 }
             }
 
-            $peminjaman->status = 'dikembalikan'; // Ubah status Peminjaman utama
-            $peminjaman->save(); // Simpan perubahan Peminjaman utama
+            // Ini seharusnya TIDAK mengubah status Peminjaman utama menjadi 'dikembalikan'.
+            // Perubahan status Peminjaman utama menjadi 'kembali' harus ditangani oleh DetailPengembalianController@approve
+            // karena itu adalah titik di mana proses pengembalian selesai dan diverifikasi.
+            // Di sini, kita hanya menandai bahwa item ini sedang dalam proses pengembalian (jika ada observer lain yang menunggu).
+            // Atau, lebih baik, kita HAPUS bagian ini dan biarkan DetailPengembalianController yang mengurus status Peminjaman utama.
+            // Jika Anda tetap ingin ini terjadi di sini, pastikan tidak bertentangan dengan DetailPengembalianController.
+            // Untuk saat ini, saya akan menghapus baris yang mengubah status peminjaman di sini.
+            // $peminjaman->status = 'dikembalikan'; // <--- HAPUS BARIS INI
+            // $peminjaman->save(); // <--- HAPUS BARIS INI
 
             if ($peminjaman->detail) {
                 $detailPeminjaman = $peminjaman->detail;
-                $detailPeminjaman->status = 'dikembalikan'; // Ubah status DetailPeminjaman
-                $detailPeminjaman->save(); // Observer DetailPeminjaman akan menambah 'stock' dan mengurangi 'stock_dipinjam' di sini
+                // DetailPeminjaman status diubah menjadi 'kembali' di sini.
+                // Observer harus mengurangi stock_dipinjam dan menambah stock_tersedia.
+                $detailPeminjaman->status = 'kembali';
+                $detailPeminjaman->save();
 
-                Log::info("Detail Peminjaman updated to 'dikembalikan':", [
+                Log::info("Detail Peminjaman updated to 'kembali':", [
                     'detail_id' => $detailPeminjaman->id_detail_peminjaman,
                     'new_detail_status' => $detailPeminjaman->status
                 ]);
 
-                // Opsional: Perbarui status 'tersedia'/'dipinjam' di Barang jika sudah tidak ada yang dipinjam
-                // Ini bisa juga dilakukan di observer jika logikanya lebih kompleks
+                // Stok harus sudah diatur oleh Observer DetailPeminjaman saat statusnya menjadi 'kembali'.
+                // Maka, bagian ini (pengaturan stok langsung) juga bisa dihapus atau disederhanakan.
                 $barang = $peminjaman->detail->barang;
                 if ($barang) {
                     $barang->refresh(); // Ambil data barang terbaru setelah observer berjalan
@@ -448,20 +454,20 @@ class PeminjamanController extends Controller
                 Log::warning("No detail found for peminjaman ID: $id during return.");
             }
 
-            Log::info("Peminjaman returned successfully:", [
+            Log::info("Peminjaman processed for return:", [ // Ubah pesan log
                 'id' => $id,
-                'new_status_peminjaman' => $peminjaman->status,
+                'current_status_peminjaman' => $peminjaman->status, // Tampilkan status saat ini
                 'new_status_detail_peminjaman' => $peminjaman->detail?->status
             ]);
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Peminjaman berhasil dikembalikan!',
+                    'message' => 'Peminjaman telah diajukan untuk dikembalikan (menunggu persetujuan)!', // Ubah pesan
                     'data' => $peminjaman->load(['user', 'detail.barang'])
                 ], 200);
             } else {
-                return redirect()->route('peminjaman.index')->with('success', 'Peminjaman berhasil dikembalikan!');
+                return redirect()->route('peminjaman.index')->with('success', 'Peminjaman telah diajukan untuk dikembalikan (menunggu persetujuan)!'); // Ubah pesan
             }
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -472,19 +478,20 @@ class PeminjamanController extends Controller
                 return redirect()->back()->with('error', 'Peminjaman tidak ditemukan.');
             }
         } catch (\Exception $e) {
-            Log::error("Error returning peminjaman:", [
+            Log::error("Error processing peminjaman for return:", [ // Ubah pesan log
                 'id' => $id,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
             if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Gagal mengembalikan peminjaman: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Gagal mengajukan pengembalian: ' . $e->getMessage()], 500);
             } else {
-                return redirect()->back()->with('error', 'Gagal mengembalikan peminjaman!');
+                return redirect()->back()->with('error', 'Gagal mengajukan pengembalian!');
             }
         }
     }
+
 
     /**
      * Tampilkan daftar peminjaman pengguna tertentu (Untuk API, dipanggil dari Flutter).
@@ -501,10 +508,10 @@ class PeminjamanController extends Controller
                 ->get();
 
             Log::info('Total peminjaman for user $userId found:', ['count' => $peminjaman->count()]);
-            
+
             // Perhatikan: endpoint ini mengembalikan JSON langsung (tanpa 'success'/'data' wrapper)
             // Ini konsisten dengan implementasi awal fetchUserLoans di Flutter.
-            return response()->json($peminjaman, 200); 
+            return response()->json($peminjaman, 200);
 
         } catch (\Exception $e) {
             Log::error('Error in user peminjaman (API):', [
@@ -512,7 +519,7 @@ class PeminjamanController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengambil peminjaman pengguna: ' . $e->getMessage()

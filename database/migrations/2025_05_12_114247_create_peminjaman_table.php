@@ -15,12 +15,11 @@ return new class extends Migration
             $table->id('id_peminjaman'); // BIGINT UNSIGNED AUTO_INCREMENT
             $table->unsignedBigInteger('users_id');
             $table->unsignedBigInteger('id_detail_peminjaman'); // Ensure this matches the type in `details_borrows`
-            $table->enum('status', ['dipinjam', 'rejected', 'pending'])->default('pending');
+            $table->enum('status', ['dipinjam', 'rejected', 'pending', 'kembali'])->default('pending');
             $table->string('keperluan')->nullable();
             $table->tinyInteger('soft_delete')->default(0);
             $table->timestamps();
 
-            // Foreign Key Constraints
             $table->foreign('id_detail_peminjaman')
                 ->references('id_detail_peminjaman')
                 ->on('detail_peminjaman')

@@ -1,22 +1,22 @@
 @extends('layouts.app')
+
 @section('content')
 <div class="min-h-screen bg-gray-900 text-white p-6">
     {{-- Navbar --}}
-    <nav class="flex flex-wrap justify-between items-center py-4 px-5 md:px-8 bg-gradient-to-b from-gray-800 to-gray-900 shadow-xl backdrop-blur-md border-b border-gray-700/50 rounded-xl mb-10">
-        <!-- Logo -->
+    <nav class="relative flex flex-wrap justify-between items-center py-4 px-5 md:px-8 bg-gradient-to-b from-gray-800 to-gray-900 shadow-xl backdrop-blur-md border-b border-gray-700/50 rounded-xl mb-10 z-50 overflow-visible">
         <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-teal-200 tracking-wider flex items-center space-x-3">
             <i class="fas fa-users-cog text-3xl text-teal-400"></i>
             <span>SISFO SARPRAS</span>
         </h1>
-        <!-- Hamburger (mobile only) -->
+
         <button id="menu-btn" class="md:hidden text-teal-400 focus:outline-none transition duration-300 hover:text-teal-200">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
-        <!-- Navigation Links -->
-        <ul id="menu" class="hidden md:flex flex-col md:flex-row w-full md:w-auto mt-4 md:mt-0 gap-1 md:gap-5 text-base font-medium items-center">
+
+        <ul id="menu" class="hidden md:flex flex-col md:flex-row w-full md:w-auto mt-4 md:mt-0 gap-1 md:gap-5 text-base font-medium items-center overflow-visible">
             <li>
                 <a href="/dashboard" class="flex items-center gap-2 text-gray-300 hover:text-teal-400 py-2 px-3 rounded-lg hover:bg-gray-800/50 transition duration-300">
                     <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -52,20 +52,132 @@
                     <i class="fas fa-file-alt"></i> Laporan
                 </a>
             </li>
+
+            {{-- === NOTIFICATION ICON AND DROPDOWN === --}}
+            <li class="relative z-40">
+                <button id="notification-btn" class="relative flex items-center gap-2 text-gray-300 hover:text-teal-400 py-2 px-3 rounded-lg hover:bg-gray-800/50 transition duration-300 focus:outline-none">
+                    <i class="fas fa-bell"></i> Notifikasi
+                    {{-- Check if $unreadNotifications is set and not empty before trying to count --}}
+                    @if(isset($unreadNotifications) && $unreadNotifications->count() > 0)
+                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
+                            {{ $unreadNotifications->count() }}
+                        </span>
+                    @endif
+                </button>
+
+                <div id="notification-dropdown" class="absolute right-0 mt-2 w-80 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 hidden max-h-96 overflow-y-auto">
+                    <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                        <h4 class="text-white font-semibold">Notifikasi</h4>
+                        @if(isset($unreadNotifications))
+                            <span class="text-sm text-gray-400">{{ $unreadNotifications->count() }} belum dibaca</span>
+                        @endif
+                    </div>
+
+                    {{-- Check if $allNotifications is set before trying to check if it's empty or iterate --}}
+                    @if(isset($allNotifications) && $allNotifications->isEmpty())
+                        <div class="px-4 py-6 text-center text-gray-400">Tidak ada notifikasi.</div>
+                    @else
+                        <ul>
+                            @if(isset($allNotifications))
+                                @foreach($allNotifications as $notification)
+                                    <li class="border-b border-gray-700 last:border-b-0">
+                                        <div class="block px-4 py-3 hover:bg-gray-700 transition-colors duration-200
+                                                @if(!$notification->read_at) bg-gray-700/50 @endif">
+                                            <div class="flex items-start">
+                                                <div class="flex-shrink-0 text-teal-400 mt-1">
+                                                    {{-- Menggunakan `array_key_exists` untuk pemeriksaan yang lebih aman --}}
+                                                    @if(array_key_exists('type', $notification->data))
+                                                        @if($notification->data['type'] == 'peminjaman_baru')
+                                                            <i class="fas fa-hand-holding"></i>
+                                                        @elseif($notification->data['type'] == 'pengembalian_baru')
+                                                            <i class="fas fa-undo-alt"></i>
+                                                        @else
+                                                            <i class="fas fa-info-circle"></i>
+                                                        @endif
+                                                    @else
+                                                        <i class="fas fa-info-circle"></i>
+                                                    @endif
+                                                </div>
+                                                <div class="ml-3 text-sm">
+                                                    {{-- Menggunakan `??` untuk fallback default jika key tidak ada --}}
+                                                    <p class="text-white font-medium">{{ $notification->data['message'] ?? 'Notifikasi tanpa pesan' }}</p>
+                                                    <p class="text-gray-400 text-xs mt-1">
+                                                        {{ $notification->created_at->diffForHumans() }}
+                                                        @if(!$notification->read_at)
+                                                            <span class="text-red-400 font-semibold ml-2">Baru!</span>
+                                                        @endif
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div class="flex justify-end mt-2">
+                                                @if(!$notification->read_at)
+                                                    <form action="{{ route('notifications.markAsRead', $notification->id) }}" method="POST">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <button type="submit" class="text-xs text-teal-400 hover:text-teal-300 font-semibold px-2 py-1 rounded-full bg-teal-900/30 hover:bg-teal-900/50 transition-colors">
+                                                            Tandai Dibaca
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                @if(array_key_exists('url', $notification->data))
+                                                    <a href="{{ url($notification->data['url']) }}" class="ml-2 text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded-full bg-blue-900/30 hover:bg-blue-900/50 transition-colors" target="_blank">
+                                                        Detail
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            @endif
+                        </ul>
+                    @endif
+                    <div class="px-4 py-3 text-center border-t border-gray-700">
+                        <form action="{{ route('notifications.markAllAsRead') }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="text-teal-400 hover:text-teal-200 text-sm focus:outline-none">Tandai Semua Dibaca</button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+            {{-- === END NOTIFICATION ICON AND DROPDOWN === --}}
+
             <li>
-                <a href="/logout" class="flex items-center gap-2 text-red-400 hover:text-red-300 py-2 px-3 rounded-lg hover:bg-red-900/20 transition duration-300 ml-2">
+                <a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="flex items-center gap-2 text-red-400 hover:text-red-300 py-2 px-3 rounded-lg hover:bg-red-900/20 transition duration-300 ml-2">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
+                    @csrf
+                </form>
             </li>
         </ul>
     </nav>
+
     <script>
         const btn = document.getElementById('menu-btn');
         const menu = document.getElementById('menu');
         btn.addEventListener('click', () => {
             menu.classList.toggle('hidden');
         });
+
+        // Dropdown Notifikasi
+        const notificationBtn = document.getElementById('notification-btn');
+        const notificationDropdown = document.getElementById('notification-dropdown');
+
+        if (notificationBtn && notificationDropdown) {
+            notificationBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                notificationDropdown.classList.toggle('hidden');
+            });
+
+            // Menutup dropdown jika klik di luar
+            document.addEventListener('click', (event) => {
+                if (!notificationDropdown.contains(event.target) && !notificationBtn.contains(event.target)) {
+                    notificationDropdown.classList.add('hidden');
+                }
+            });
+        }
     </script>
+
     {{-- Header Section --}}
     <div class="mb-10">
         <h1 class="text-3xl font-bold text-white mb-2">Laporan</h1>
@@ -202,6 +314,33 @@
             </div>
         </div>
     </div>
+
+    {{-- Chart Section (Line Chart and Pie Chart) --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {{-- Line Chart --}}
+        <div class="lg:col-span-2 bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-teal-400 tracking-wide">📈 Statistik Peminjaman Bulanan</h3>
+                <div class="bg-gray-700 text-xs text-gray-300 px-3 py-1 rounded-full">
+                    {{ count($lineChartData['labels']) }} bulan terakhir
+                </div>
+            </div>
+            <div class="h-72">
+                <canvas id="lineChartLaporan"></canvas>
+            </div>
+        </div>
+
+        {{-- Pie Chart Section --}}
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-teal-400">📊 Barang Paling Banyak Dipinjam</h3>
+            </div>
+            <div class="h-72 flex items-center justify-center">
+                <canvas id="pieChartLaporan"></canvas>
+            </div>
+        </div>
+    </div>
+
     {{-- Filter & Date Range --}}
     <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50 mb-10">
         <h3 class="text-xl font-semibold text-teal-400 mb-6 flex items-center">
@@ -242,10 +381,12 @@
             </div>
         </form>
     </div>
-    @if(isset($peminjaman) && (($kategori != 'all' && $peminjaman->count() > 0) || ($kategori == 'all')))
+
+    {{-- Conditional rendering for filtered results --}}
+    @if(isset($peminjaman) && (($kategori != 'all' && $peminjaman->count() > 0) || ($kategori == 'all' && ($peminjaman['barang']->count() > 0 || $peminjaman['peminjaman']->count() > 0 || $peminjaman['pengembalian']->count() > 0))))
     <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-xl shadow-xl border border-gray-700/50 mb-10">
         <h3 class="text-xl font-semibold text-teal-400 mb-6 flex items-center">
-            <i class="fas fa-table mr-3"></i> 
+            <i class="fas fa-table mr-3"></i>
             @if($kategori == 'barang')
                 Data Barang
             @elseif($kategori == 'peminjaman')
@@ -261,6 +402,7 @@
              ({{ \Carbon\Carbon::parse($startDate)->format('d M Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d M Y') }})
             @endif
         </h3>
+
         @if($kategori != 'all')
         {{-- Display single category data --}}
         <div class="overflow-x-auto">
@@ -289,7 +431,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($peminjaman as $index => $item)
+                    @forelse($peminjaman as $index => $item)
                     <tr class="{{ $index % 2 == 0 ? 'bg-gray-800' : 'bg-gray-800/50' }} border-b border-gray-700">
                         <td class="p-3 text-gray-300">{{ $index + 1 }}</td>
                         @if($kategori == 'barang')
@@ -297,10 +439,10 @@
                             <td class="p-3 text-gray-300">{{ optional($item->kategori)->nama_kategori ?? '-' }}</td>
                             <td class="p-3 text-gray-300">{{ $item->stock }}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->kondisi_barang == 'baik' ? 'bg-green-900/50 text-green-400' : 
-                                       ($item->kondisi_barang == 'rusak' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400') }}">
-                                    {{ ucfirst($item->kondisi_barang) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->kondisi_barang == 'baik' ? 'bg-green-900/50 text-green-400' :
+                                        ($item->kondisi_barang == 'rusak' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400') }}">
+                                        {{ ucfirst($item->kondisi_barang) }}
                                 </span>
                             </td>
                             <td class="p-3 text-gray-300">{{ $item->created_at->format('d/m/Y') }}</td>
@@ -313,33 +455,38 @@
                                     -
                                 @endif
                             </td>
-                            <td class="p-3 text-gray-300">{{ $item->detail->jumlah }} Item</td>
+                            {{-- Assuming 'peminjaman' data refers to the Peminjaman model, sum its details' quantities --}}
+                            <td class="p-3 text-gray-300">{{ $item->detail->sum('jumlah') }} Item</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' : 
-                                       ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
-                                    {{ ucfirst($item->status) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                                        ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
+                                        {{ ucfirst($item->status) }}
                                 </span>
                             </td>
                         @elseif($kategori == 'pengembalian')
                             <td class="p-3 text-white">{{ optional(optional($item->peminjaman)->user)->username ?? '-' }}</td>
                             <td class="p-3 text-gray-300">{{ optional($item->barang)->nama_barang ?? '-' }}</td>
-                            <td class="p-3 text-gray-300">{{ \Carbon\Carbon::parse($item->tanggal_pengembalian)->format('d/m/Y') }}</td>
+                            <td class="p-3 text-gray-300">{{ \Carbon\Carbon::parse($item->tanggal_kembali)->format('d/m/Y') }}</td>
                             <td class="p-3 text-gray-300">{{ $item->jumlah }}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' : 
-                                       ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
-                                    {{ ucfirst($item->status) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                                        ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
+                                        {{ ucfirst($item->status) }}
                                 </span>
                             </td>
                         @endif
                     </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="6" class="p-3 text-gray-400 text-center">Tidak ada data yang tersedia untuk kategori ini dalam rentang tanggal yang dipilih.</td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
-        @else
+        @else {{-- This 'else' correctly belongs to the `if($kategori != 'all')` above --}}
         {{-- Display all categories data (tabs) --}}
         <div class="mb-6 border-b border-gray-700">
             <div class="flex flex-wrap">
@@ -371,7 +518,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($peminjaman['barang'] as $index => $item)
+                        @forelse($peminjaman['barang'] as $index => $item)
                         <tr class="{{ $index % 2 == 0 ? 'bg-gray-800' : 'bg-gray-800/50' }} border-b border-gray-700">
                             <td class="p-3 text-gray-300">{{ $index + 1 }}</td>
                             <td class="p-3 text-gray-300">{{ $item->kode_barang }}</td>
@@ -379,15 +526,19 @@
                             <td class="p-3 text-gray-300">{{ optional($item->kategori)->nama_kategori ?? '-' }}</td>
                             <td class="p-3 text-gray-300">{{ $item->stock }}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->kondisi_barang == 'baik' ? 'bg-green-900/50 text-green-400' : 
-                                       ($item->kondisi_barang == 'rusak' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400') }}">
-                                    {{ ucfirst($item->kondisi_barang) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->kondisi_barang == 'baik' ? 'bg-green-900/50 text-green-400' :
+                                        ($item->kondisi_barang == 'rusak' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400') }}">
+                                        {{ ucfirst($item->kondisi_barang) }}
                                 </span>
                             </td>
                             <td class="p-3 text-gray-300">{{ $item->created_at->format('d/m/Y') }}</td>
                         </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="7" class="p-3 text-gray-400 text-center">Tidak ada data barang yang tersedia.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -410,7 +561,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($peminjaman['peminjaman'] as $index => $item)
+                        @forelse($peminjaman['peminjaman'] as $index => $item)
                         <tr class="{{ $index % 2 == 0 ? 'bg-gray-800' : 'bg-gray-800/50' }} border-b border-gray-700">
                             <td class="p-3 text-gray-300">{{ $index + 1 }}</td>
                             <td class="p-3 text-white">{{ optional($item->user)->username ?? '-' }}</td>
@@ -418,18 +569,23 @@
                                 @if($item->detail->count() > 0)
                                     {{ \Carbon\Carbon::parse($item->detail->first()->tanggal_pinjam)->format('d/m/Y') }}
                                 @else
+                                    -
                                 @endif
                             </td>
-                            <td class="p-3 text-gray-300">{{ $item->detail->jumlah }} Item</td>
+                            <td class="p-3 text-gray-300">{{ $item->detail->sum('jumlah') }} Item</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' : 
-                                       ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
-                                    {{ ucfirst($item->status) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                                        ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
+                                        {{ ucfirst($item->status) }}
                                 </span>
                             </td>
                         </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5" class="p-3 text-gray-400 text-center">Tidak ada data peminjaman yang tersedia.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -453,7 +609,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($peminjaman['pengembalian'] as $index => $item)
+                        @forelse($peminjaman['pengembalian'] as $index => $item)
                         <tr class="{{ $index % 2 == 0 ? 'bg-gray-800' : 'bg-gray-800/50' }} border-b border-gray-700">
                             <td class="p-3 text-gray-300">{{ $index + 1 }}</td>
                             <td class="p-3 text-white">{{ optional(optional($item->peminjaman)->user)->username ?? '-' }}</td>
@@ -461,14 +617,18 @@
                             <td class="p-3 text-gray-300">{{ \Carbon\Carbon::parse($item->tanggal_kembali)->format('d/m/Y') }}</td>
                             <td class="p-3 text-gray-300">{{ $item->jumlah }}</td>
                             <td class="p-3">
-                                <span class="px-2 py-1 rounded text-xs 
-                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' : 
-                                       ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
-                                    {{ ucfirst($item->status) }}
+                                <span class="px-2 py-1 rounded text-xs
+                                    {{ $item->status == 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                                        ($item->status == 'approve' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400') }}">
+                                        {{ ucfirst($item->status) }}
                                 </span>
                             </td>
                         </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="6" class="p-3 text-gray-400 text-center">Tidak ada data pengembalian yang tersedia.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -476,9 +636,11 @@
             <p class="text-gray-400">Tidak ada data pengembalian yang tersedia.</p>
             @endif
         </div>
+        @endif {{-- THIS IS THE CRUCIAL MISSING @ENDIF FOR THE OUTER CONDITIONAL BLOCK --}}
     </div>
-    @endif
+    @endif {{-- This @endif closes the initial @if(isset($peminjaman) && ...) for the entire filtered results section --}}
 </div>
+
 <script>
     // Tab functionality
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -487,13 +649,167 @@
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             tabButtons.forEach(btn => btn.classList.remove('active', 'text-teal-400', 'border-teal-400'));
+            // Remove the specific active tab styling
+            tabButtons.forEach(btn => {
+                btn.classList.remove('border-b-2', 'border-teal-400');
+                btn.classList.add('text-gray-400', 'hover:text-teal-400'); // Re-add default hover
+            });
+
             tabContents.forEach(content => content.classList.add('hidden'));
 
-            button.classList.add('active', 'text-teal-400', 'border-teal-400');
+            button.classList.add('active', 'text-teal-400', 'border-b-2', 'border-teal-400'); // Add active styles
+            button.classList.remove('text-gray-400', 'hover:text-teal-400'); // Remove default hover
             const contentId = `content-${button.id.split('-')[1]}`;
             document.getElementById(contentId).classList.remove('hidden');
+
+            // Update tab counter background
+            tabButtons.forEach(btn => {
+                const span = btn.querySelector('span');
+                if (span) {
+                    span.classList.remove('bg-teal-900/50', 'text-teal-400');
+                    span.classList.add('bg-gray-800', 'text-gray-400');
+                }
+            });
+            const activeSpan = button.querySelector('span');
+            if (activeSpan) {
+                activeSpan.classList.remove('bg-gray-800', 'text-gray-400');
+                activeSpan.classList.add('bg-teal-900/50', 'text-teal-400');
+            }
+        });
+    });
+
+    // Initialize the first tab as active on page load if 'all' category is selected
+    // Or if no specific category is selected and showing all data.
+    document.addEventListener('DOMContentLoaded', () => {
+        // Find the 'barang' tab button and click it to activate it by default
+        const defaultTabButton = document.getElementById('tab-barang');
+        if (defaultTabButton) {
+            defaultTabButton.click();
+        }
+    });
+
+</script>
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // LINE CHART for Laporan
+        const lineCtxLaporan = document.getElementById('lineChartLaporan').getContext('2d');
+        const lineChartDataLaporan = @json($lineChartData);
+        const lineLabelsLaporan = lineChartDataLaporan.labels;
+        const lineValuesLaporan = lineChartDataLaporan.values;
+
+        const lineGradientLaporan = lineCtxLaporan.createLinearGradient(0, 0, 0, 400);
+        lineGradientLaporan.addColorStop(0, 'rgba(0, 255, 187, 0.91)');
+        lineGradientLaporan.addColorStop(1, 'rgba(2, 73, 68, 0.42)');
+
+        new Chart(lineCtxLaporan, {
+            type: 'line',
+            data: {
+                labels: lineLabelsLaporan,
+                datasets: [{
+                    label: 'Peminjaman Bulanan',
+                    data: lineValuesLaporan,
+                    backgroundColor: lineGradientLaporan,
+                    borderColor: 'rgba(255, 255, 255, 0.8)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#5bbfba',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                        titleColor: '#5bbfba',
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 },
+                        padding: 12,
+                        cornerRadius: 6,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            font: { size: 11 }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            font: { size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+
+        // PIE CHART for Laporan
+        const pieCtxLaporan = document.getElementById('pieChartLaporan').getContext('2d');
+        const pieChartDataLaporan = @json($pieChartData);
+        const pieLabelsLaporan = pieChartDataLaporan.labels;
+        const pieValuesLaporan = pieChartDataLaporan.values;
+
+        new Chart(pieCtxLaporan, {
+            type: 'doughnut',
+            data: {
+                labels: pieLabelsLaporan,
+                datasets: [{
+                    data: pieValuesLaporan,
+                    backgroundColor: [
+                        'rgba(20, 184, 166, 0.85)',
+                        'rgba(124, 58, 237, 0.85)',
+                        'rgba(219, 39, 119, 0.85)',
+                        'rgba(217, 119, 6, 0.85)',
+                        'rgba(79, 70, 229, 0.85)',
+                        'rgba(30, 64, 175, 0.85)'
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#fff',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        bodyFont: { size: 13 },
+                        padding: 12,
+                        cornerRadius: 6,
+                        displayColors: true
+                    }
+                }
+            }
         });
     });
 </script>
-@endif
+@endpush
 @endsection
